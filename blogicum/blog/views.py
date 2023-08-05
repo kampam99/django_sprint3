@@ -1,52 +1,35 @@
 from django.shortcuts import get_object_or_404, render
+
 from django.utils import timezone
 
 from blog.models import Category, Post
 
+POSTS_PER_PAGE = 5
 
-def index(request):
-    template = 'blog/index.html'
-    post_list = Post.objects.filter(
+
+def get_base_post_queryset():
+    return Post.objects.select_related('category').filter(
         is_published=True,
         category__is_published=True,
         pub_date__lte=timezone.now()
-    )[:5]
-    context = {'post_list': post_list}
-    return render(request, template, context)
+    )
+
+
+def index(request):
+    post_list = get_base_post_queryset()[:POSTS_PER_PAGE]
+    return render(request, 'blog/index.html', {'post_list': post_list})
 
 
 def post_detail(request, id):
-    template = 'blog/detail.html'
-    post = get_object_or_404(
-        Post.objects.filter(
-            is_published=True,
-            category__is_published=True,
-            pub_date__lte=timezone.now()
-        ), pk=id
-    )
-    context = {'post': post}
-    return render(request, template, context)
+    post = get_object_or_404(get_base_post_queryset(), pk=id)
+    return render(request, 'blog/detail.html', {'post': post})
 
 
 def category_posts(request, category_slug):
-    template = 'blog/category.html'
-    category = get_object_or_404(
-        Category.objects.values(
-            'title', 'description',
-        ).filter(
-            slug=category_slug,
-            is_published=True
-        )
-    )
+    category = get_object_or_404(Category.objects.values('title', 'description').filter(
+        slug=category_slug, is_published=True
+    ))
 
-    post_list = Post.objects.filter(
-        pub_date__lte=timezone.now(),
-        is_published=True,
-        category__slug=category_slug,
-    )
+    post_list = get_base_post_queryset().filter(category__slug=category_slug)
 
-    context = {
-        'category': category,
-        'post_list': post_list
-    }
-    return render(request, template, context)
+    return render(request, 'blog/category.html', {'category': category, 'post_list': post_list})
