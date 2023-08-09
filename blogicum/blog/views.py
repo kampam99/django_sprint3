@@ -1,49 +1,50 @@
-from datetime import datetime
-
 from django.shortcuts import get_object_or_404, render
+
+from django.utils import timezone
 
 from blog.models import Post, Category
 
-
-POSTS_COUNT = 5
-
-
-def post_pub_filter():
-    return Post.objects.filter(
-        is_published=True,
-        category__is_published=True,
-        pub_date__lte=datetime.now()
-    ).select_related(
-        'location', 'category', 'author'
-    )
+NUM_OF_PUNBLIC = 5
 
 
 def index(request):
-    post_list = post_pub_filter().order_by('-pub_date')[:POSTS_COUNT]
-    context = {
-        'post_list': post_list
-    }
-    return render(request, 'blog/index.html', context)
+    template = 'blog/index.html'
+    post_list = Post.objects.select_related(
+        'category',
+        'location',
+        'author'
+    ).filter(
+        pub_date__lte=timezone.now(),
+        is_published=True,
+        category__is_published=True
+    )[:NUM_OF_PUNBLIC]
+    context = {'post_list': post_list}
+    return render(request, template, context)
 
 
 def post_detail(request, id):
-    post = get_object_or_404(post_pub_filter(), pk=id)
-    context = {
-        'post': post
-    }
-    return render(request, 'blog/detail.html', context)
+    template = 'blog/detail.html'
+    post_list = get_object_or_404(Post.objects.select_related(
+        'location', 'author', 'category').filter(
+            pub_date__lte=timezone.now(),
+            is_published=True,
+            category__is_published=True
+    ),
+        pk=id
+    )
+    context = {'post': post_list}
+    return render(request, template, context)
 
 
 def category_posts(request, category_slug):
-    category = get_object_or_404(
-        Category, is_published=True,
-        slug=category_slug)
-    post_list = category.categories.filter(
+    template = 'blog/category.html'
+    category = get_object_or_404(Category,
+                                 slug=category_slug,
+                                 is_published=True)
+    post_list = Post.objects.filter(
+        pub_date__lte=timezone.now(),
         is_published=True,
-        pub_date__lte=datetime.now()
+        category=category
     )
-    context = {
-        'category': category,
-        'post_list': post_list
-    }
-    return render(request, 'blog/category.html', context)
+    context = {'category': category, 'post_list': post_list}
+    return render(request, template, context)
