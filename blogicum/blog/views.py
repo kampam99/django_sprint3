@@ -44,6 +44,6 @@ def category_posts(request, category_slug):
     )
     context = {
         'category': category,
-        'post_list': post_list
+        'post_list': post_list,
     }
     return render(request, 'blog/category.html', context)
